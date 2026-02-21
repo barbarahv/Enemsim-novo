@@ -1,0 +1,95 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  name      String?
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  role        String     @default("STUDENT")
+  theme       String   @default("LIGHT") // LIGHT or DARK
+  age         Int?
+  sex         String?
+  education   String?
+  termsAccepted Boolean @default(false)
+  privacyAccepted Boolean @default(false)
+  isVerified  Boolean  @default(false)
+  verificationToken String?
+  
+  // WhatsApp Alerts
+  whatsapp       String?
+  studyShift     String? // MANHA, TARDE, NOITE
+  wantsReminders Boolean @default(false)
+
+  requests    ContentChangeRequest[] @relation("RequestedChanges")
+  isBlocked   Boolean  @default(false)
+  canApprove  Boolean  @default(false) // If true, can approve changes and doesn't need approval
+  progress    UserWeekProgress[]
+}
+
+model ContentChangeRequest {
+  id          Int      @id @default(autoincrement())
+  type        String   // "CREATE", "UPDATE", "DELETE"
+  entityType  String   // "LESSON", "VIDEO", "PDF", "QUESTION"
+  data        String   // JSON string of the content
+  status      String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  
+  requesterId Int
+  requester   User     @relation("RequestedChanges", fields: [requesterId], references: [id])
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Week {
+  id          Int      @id @default(autoincrement())
+  number      Int      @unique
+  title       String
+  description String?
+  type        String   @default("ENEM") // "ENEM" or "CONCURSO"
+  userProgress UserWeekProgress[]
+  days        Day[]
+}
+
+model Day {
+  id          Int      @id @default(autoincrement())
+  weekId      Int
+  week        Week     @relation(fields: [weekId], references: [id])
+  number      Int      // 1 to 6
+  title       String
+  isExam      Boolean  @default(false) // True if it is Day 6 (Simulado)
+  lessons     Lesson[]
+}
+
+model Lesson {
+  id          Int      @id @default(autoincrement())
+  dayId       Int
+  day         Day      @relation(fields: [dayId], references: [id])
+  title       String
+  videoUrl    String?
+  pdfUrl      String?
+  content     String? // Markdown or text content
+  order       Int      // 1 or 2
+}
+
+model UserWeekProgress {
+  id        Int     @id @default(autoincrement())
+  userId    Int
+  user      User    @relation(fields: [userId], references: [id])
+  weekId    Int
+  week      Week    @relation(fields: [weekId], references: [id])
+  isCompleted Boolean @default(false)
+  isUnlocked  Boolean @default(false)
+
+  @@unique([userId, weekId])
+}
+
+
