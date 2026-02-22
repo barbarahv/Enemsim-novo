@@ -7,14 +7,14 @@ import { Capacitor } from '@capacitor/core';
 export default function AdBanner({ className }: { className?: string }) {
     useEffect(() => {
         if (Capacitor.isNativePlatform()) {
-            const adUnitId = 'ca-app-pub-3940256099942544/6300978111'; // Test Ad Unit ID
+            const adUnitId = 'ca-app-pub-4761293834429137/8125648707'; // Real Ad Unit ID
 
             AdMob.showBanner({
                 adId: adUnitId,
                 adSize: BannerAdSize.BANNER,
                 position: BannerAdPosition.BOTTOM_CENTER,
                 margin: 0,
-                isTesting: true
+                isTesting: false
             }).catch(err => {
                 console.error('AdMob show banner error:', err);
             });
