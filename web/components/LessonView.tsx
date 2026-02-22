@@ -144,6 +144,31 @@ export default function LessonView({
         }
     };
 
+    // Helper: Resolve PDF URL
+    const resolvePdfUrl = (url: string) => {
+        if (!url) return "";
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api-enemsim.onrender.com';
+
+        let targetUrl = url;
+
+        // 1. If relative path
+        if (url.startsWith('/')) {
+            targetUrl = `${apiUrl}${url}`;
+        }
+
+        // 2. If it contains localhost (legacy)
+        else if (url.includes('localhost')) {
+            targetUrl = url.replace(/http:\/\/localhost:\d+/, apiUrl);
+        }
+
+        // For absolute URLs (like Firebase Storage), we use Google Docs Viewer to ensure mobile compatibility
+        if (targetUrl.startsWith('http')) {
+            return `https://docs.google.com/viewer?url=${encodeURIComponent(targetUrl)}&embedded=true`;
+        }
+
+        return targetUrl;
+    };
+
     // Render Logic
     if (isLocked) {
         return (
@@ -227,7 +252,7 @@ export default function LessonView({
                         <button
                             onClick={() => {
                                 // Open in new tab for now as it's simpler for secondary
-                                window.open(data.pdf2Url, '_blank');
+                                window.open(resolvePdfUrl(data.pdf2Url || ""), '_blank');
                             }}
                             className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-purple-50 dark:bg-purple-900/20 text-purple-600 border border-purple-200 dark:border-purple-800 rounded-lg font-bold hover:bg-purple-100 dark:hover:bg-purple-900/40 transition-colors"
                         >
@@ -253,7 +278,7 @@ export default function LessonView({
                                     </button>
                                 </div>
                                 <iframe
-                                    src={data.pdfUrl}
+                                    src={resolvePdfUrl(data.pdfUrl)}
                                     className="w-full flex-1 bg-gray-100"
                                     title="PDF Viewer"
                                 ></iframe>
