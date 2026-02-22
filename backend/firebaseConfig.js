@@ -30,5 +30,6 @@ if (!admin.apps.length) {
 }
 
 const db = admin.firestore();
+const bucket = admin.storage().bucket("enemsim-4e586.firebasestorage.app");
 
-module.exports = { admin, db };
+module.exports = { admin, db, bucket };

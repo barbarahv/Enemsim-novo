@@ -24,33 +24,48 @@ app.get('/', (req, res) => {
 // Multer Setup
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
+const { bucket } = require('./firebaseConfig');
 
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const uploadDir = 'uploads';
-        if (!fs.existsSync(uploadDir)) {
-            fs.mkdirSync(uploadDir);
-        }
-        cb(null, uploadDir);
-    },
-    filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, uniqueSuffix + path.extname(file.originalname));
-    }
-});
-
+const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
 // Upload Endpoint
-app.post('/upload', upload.single('file'), (req, res) => {
-    console.log("[UPLOAD] Request received");
+app.post('/upload', upload.single('file'), async (req, res) => {
+    console.log("[UPLOAD] Request received to Firebase Storage");
     try {
         if (!req.file) {
             return res.status(400).json({ error: "No file uploaded" });
         }
-        const fileUrl = `http://localhost:${PORT}/uploads/${req.file.filename}`;
-        res.json({ url: fileUrl, filename: req.file.filename });
+
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const fileName = uniqueSuffix + path.extname(req.file.originalname);
+        const blob = bucket.file(fileName);
+
+        const blobStream = blob.createWriteStream({
+            metadata: {
+                contentType: req.file.mimetype
+            }
+        });
+
+        blobStream.on('error', (err) => {
+            console.error("[UPLOAD ERROR]", err);
+            res.status(500).json({ error: "Upload to Firebase failed" });
+        });
+
+        blobStream.on('finish', async () => {
+            // Make public (Optional, or use signed URLs. Making public is easier for PDF display)
+            try {
+                await blob.makePublic();
+            } catch (e) {
+                console.log("Could not make public (might already be or permissions issue), using metadata instead");
+            }
+
+            const fileUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
+            res.json({ url: fileUrl, filename: fileName });
+        });
+
+        blobStream.end(req.file.buffer);
+
     } catch (e) {
         console.error(e);
         res.status(500).json({ error: "Upload failed" });
