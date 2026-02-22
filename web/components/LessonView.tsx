@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { PlayCircle, FileText, CheckCircle, Lock, RotateCcw } from "lucide-react";
 import AdBanner from "./AdBanner";
-import { Browser } from '@capacitor/browser';
 
 interface LessonData {
     videoUrl?: string;
@@ -58,6 +57,7 @@ export default function LessonView({
     const [isWaitingNext, setIsWaitingNext] = useState(false);
     const [showFeedback, setShowFeedback] = useState(false);
     const [feedbackTimeLeft, setFeedbackTimeLeft] = useState(5);
+    const [isPdfOpen, setIsPdfOpen] = useState(false);
 
     const questions = (data?.questions || []).slice(0, 15);
     const hasQuiz = questions.length > 0;
@@ -121,8 +121,8 @@ export default function LessonView({
         }
     };
 
-    const openPdf = async (url: string) => {
-        if (!url) return;
+    const resolvePdfUrl = (url: string) => {
+        if (!url) return "";
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api-enemsim.onrender.com';
         let targetUrl = url;
 
@@ -132,10 +132,11 @@ export default function LessonView({
             targetUrl = url.replace(/http:\/\/localhost:\d+/, apiUrl);
         }
 
-        await Browser.open({
-            url: targetUrl,
-            toolbarColor: '#2563eb' // Blue-600 to match app theme
-        });
+        if (targetUrl.startsWith('http')) {
+            // Using GView here as it often handles multi-page iframes better on mobile
+            return `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(targetUrl)}`;
+        }
+        return targetUrl;
     };
 
     if (isLocked) {
@@ -196,7 +197,7 @@ export default function LessonView({
                     <button
                         onClick={() => {
                             if (data?.pdfUrl) {
-                                openPdf(data.pdfUrl);
+                                setIsPdfOpen(true);
                             } else {
                                 alert("O arquivo PDF não foi encontrado.");
                             }
@@ -209,12 +210,40 @@ export default function LessonView({
 
                     {data?.pdf2Url && (
                         <button
-                            onClick={() => openPdf(data.pdf2Url || "")}
+                            onClick={() => {
+                                setIsPdfOpen(true);
+                            }}
                             className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-purple-50 dark:bg-purple-900/20 text-purple-600 border border-purple-200 dark:border-purple-800 rounded-lg font-bold hover:bg-purple-100 dark:hover:bg-purple-900/40 transition-colors"
                         >
                             <FileText className="w-5 h-5" />
                             {pdf2Label || "Material Extra (PDF)"}
                         </button>
+                    )}
+
+                    {isPdfOpen && data?.pdfUrl && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+                            <div className="bg-white dark:bg-slate-900 w-full h-full max-w-5xl rounded-lg flex flex-col relative overflow-hidden">
+                                <div className="flex justify-between items-center p-3 bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+                                    <h3 className="font-bold text-slate-700 dark:text-white flex items-center gap-2">
+                                        <FileText className="w-5 h-5 text-red-500" />
+                                        Leitor de PDF
+                                    </h3>
+                                    <button
+                                        onClick={() => setIsPdfOpen(false)}
+                                        className="bg-red-600 text-white px-4 py-1.5 rounded-lg hover:bg-red-700 flex items-center gap-2 font-bold text-sm transition-colors"
+                                    >
+                                        Fechar ✕
+                                    </button>
+                                </div>
+                                <div className="flex-1 w-full overflow-auto bg-gray-100">
+                                    <iframe
+                                        src={resolvePdfUrl(data.pdfUrl)}
+                                        className="w-full h-full border-0"
+                                        title="PDF Viewer"
+                                    ></iframe>
+                                </div>
+                            </div>
+                        </div>
                     )}
                 </div>
 
@@ -257,6 +286,7 @@ export default function LessonView({
                                         setScore(0);
                                         setSelectedAnswer(null);
                                         setShowFeedback(false);
+                                        setTimeLeft(5);
                                     }}
                                     className="w-full mt-3 py-4 bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-gray-300 font-bold rounded-lg shadow-sm flex items-center justify-center gap-2 transition-all transform hover:scale-[1.02]"
                                 >
