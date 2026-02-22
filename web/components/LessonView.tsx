@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { PlayCircle, FileText, CheckCircle, Lock, RotateCcw } from "lucide-react";
 import AdBanner from "./AdBanner";
 
@@ -59,7 +59,8 @@ export default function LessonView({
     const [feedbackTimeLeft, setFeedbackTimeLeft] = useState(5);
     const [isPdfOpen, setIsPdfOpen] = useState(false);
 
-    const questions = (data?.questions || []).slice(0, 15);
+    // Stable questions array to prevent re-calculations during render unless data changes
+    const questions = useMemo(() => (data?.questions || []).slice(0, 15), [data?.questions]);
     const hasQuiz = questions.length > 0;
 
     useEffect(() => {
@@ -81,11 +82,14 @@ export default function LessonView({
     }, [showFeedback]);
 
     const handleConfirmAnswer = () => {
-        if (isWaitingNext) return;
+        if (isWaitingNext || selectedAnswer === null) return;
         setIsWaitingNext(true);
-        if (selectedAnswer === questions[currentQuestion].correctAnswer) {
+
+        const correct = questions[currentQuestion]?.correctAnswer;
+        if (selectedAnswer === correct) {
             setScore(prev => prev + 1);
         }
+
         setTimeout(() => {
             setShowFeedback(true);
             setIsWaitingNext(false);
@@ -133,7 +137,6 @@ export default function LessonView({
         }
 
         if (targetUrl.startsWith('http')) {
-            // Using GView here as it often handles multi-page iframes better on mobile
             return `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(targetUrl)}`;
         }
         return targetUrl;
@@ -163,7 +166,7 @@ export default function LessonView({
     }
 
     return (
-        <div className="w-full bg-white dark:bg-slate-900 rounded-xl shadow-md overflow-hidden border border-gray-100 dark:border-slate-800">
+        <div className="w-full bg-white dark:bg-slate-900 rounded-xl shadow-md overflow-hidden border border-gray-100 dark:border-slate-800 pb-16">
             <div className={`p-4 flex items-center justify-between gap-3 bg-blue-600`}>
                 <div className="flex items-center gap-3">
                     <div className="bg-white/20 p-2 rounded-full">
@@ -306,10 +309,10 @@ export default function LessonView({
                                         </div>
                                         <p className="text-sm text-gray-500 mb-4 uppercase tracking-wider font-bold">Questão {currentQuestion + 1}</p>
                                         <p className="font-medium text-slate-800 dark:text-gray-200 text-lg mb-6 leading-relaxed">
-                                            {questions[currentQuestion].text}
+                                            {questions[currentQuestion]?.text}
                                         </p>
                                         <div className="space-y-3 mb-6">
-                                            {questions[currentQuestion].options.map((option: string, idx: number) => (
+                                            {questions[currentQuestion]?.options.map((option: string, idx: number) => (
                                                 <div
                                                     key={idx}
                                                     onClick={() => !isWaitingNext && setSelectedAnswer(idx)}
@@ -325,7 +328,7 @@ export default function LessonView({
                                                 </div>
                                             ))}
                                         </div>
-                                        <AdBanner className="mb-6" />
+
                                         <button
                                             onClick={handleConfirmAnswer}
                                             disabled={timeLeft > 0 || selectedAnswer === null || isWaitingNext}
@@ -339,11 +342,11 @@ export default function LessonView({
                                     </>
                                 ) : (
                                     <div className="animate-in fade-in zoom-in duration-300">
-                                        <div className={`p-6 rounded-xl mb-6 text-center border-2 ${selectedAnswer === questions[currentQuestion].correctAnswer
+                                        <div className={`p-6 rounded-xl mb-6 text-center border-2 ${selectedAnswer === (questions[currentQuestion]?.correctAnswer)
                                             ? 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800'
                                             : 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800'
                                             }`}>
-                                            {selectedAnswer === questions[currentQuestion].correctAnswer ? (
+                                            {selectedAnswer === questions[currentQuestion]?.correctAnswer ? (
                                                 <>
                                                     <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
                                                         <CheckCircle className="w-8 h-8" />
@@ -359,11 +362,8 @@ export default function LessonView({
                                                 </>
                                             )}
                                             <p className="text-gray-700 dark:text-gray-300 mb-4">
-                                                <strong>Justificativa:</strong> {questions[currentQuestion].justification}
+                                                <strong>Justificativa:</strong> {questions[currentQuestion]?.justification}
                                             </p>
-                                        </div>
-                                        <div className="my-6 pt-6 border-t border-gray-100 dark:border-slate-800">
-                                            <AdBanner />
                                         </div>
                                         <button
                                             onClick={handleNextQuestion}
@@ -382,6 +382,8 @@ export default function LessonView({
                     </div>
                 </div>
             </div>
+            {/* AdBanner is now stable outside the conditional blocks */}
+            <AdBanner className="mt-4" />
         </div>
     );
 }
